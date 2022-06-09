@@ -5,6 +5,7 @@
     [plug-ui.specs :as $]
     [plug-utils.maps :as um]
     [plug-utils.re-frame :refer [<sub >evt]]
+    [plug-utils.spec :refer [valid?]]
     [plug-utils.time :as ut]
     [re-frame.core :as rf]
     [taoensso.timbre :as log]))
@@ -18,7 +19,7 @@
 (def ^:private notifications-key ::cache)                   ;; Where we store this in app-db
 (def ^:private ttl 5000)                                    ;; How long before notifications are automatically dismissed
 (def ^:private max-presented 6)                             ;; How many of the registered notifications to present at any one time
-
+(def ^:private notification-defaults {:severity :undefined})
 
 ;;-------------------------------------------------
 ;; HELPERS
@@ -40,9 +41,9 @@
 (defn- make-notification
   "Create a notification from the provided seed map"
   [seed time-now ttl]
-  {:pre  [(s/assert ::$/notification-seed seed) (s/assert ::$/epoch-millis time-now) (s/assert ::$/ttl ttl)]
-   :post [(s/assert ::$/notification %)]}
-  (-> seed
+  {:pre  [(valid? ::$/notification-seed seed) (valid? ::$/epoch-millis time-now) (valid? ::$/ttl ttl)]
+   :post [(valid? ::$/notification %)]}
+  (-> (merge notification-defaults seed)
       (assoc :id (rand-int 1e6))
       (um/some-updates
         :created #(ut/time-now-local-str)
@@ -63,7 +64,7 @@
   :new/notification
   [rf/trim-v]
   (fn [{:keys [db]} [seed]]
-    {:pre [(s/assert ::$/notification-seed seed)]}
+    {:pre [(valid? ::$/notification-seed seed)]}
     (let [time-now         (ut/epoch-millis-now)
           new-notification (make-notification seed time-now ttl)
           cleanup-timer    (inc ttl)]                       ;; Ensure time has expired when scheduled clean event fires
@@ -109,7 +110,7 @@
 (defn- prep-for-display
   "Add some display related keys to notification"
   [{:keys [severity] :as notification}]
-  {:pre [(s/assert ::$/notification notification)]}
+  {:pre [(valid? ::$/notification notification)]}
   (let [subclass (or (severity->subclass severity) "dark")
         class    (str "is-" subclass)]
     (assoc notification
@@ -133,7 +134,7 @@
 
 ; Note: Inline style to avoid lib users needing extra CSS
 (defn- notification-message [{:keys [created text class id] :as notification}]
-  {:pre [(s/assert ::$/notification notification)]}
+  {:pre [(valid? ::$/notification notification)]}
   [:div.notification.m-1 {:class [class "is-light"]}
    [:button.delete.is-info {:on-click #(>evt [::close-notification id])}]
    [:div>small>em created]
