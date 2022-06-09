@@ -71,30 +71,6 @@
        :fx [[:dispatch-later {:ms cleanup-timer :dispatch [::clean-expired-notifications]}]]})))
 
 
-;; NOTE: This is a more general error handler used and expected by e.g. plug-fetch.
-;;       Included here as it utilizes notifications
-(rf/reg-event-fx
-  :reg/error
-  [rf/trim-v]
-  (fn [{:keys [db]} [{:keys [source action message raw]}]]
-    (log/debug raw)
-    (let [{:keys [last-error status-text debug-message]} raw
-          message (or message last-error status-text debug-message)
-          text    (str "An error occurred!\n" message)]
-      ;(log/error (str ":reg/error raw" raw))
-
-      {:dispatch  [:new/notification {:severity :error      ;; Require [plug-ui.bulma.notifications] for this one to work
-                                      :text     text}]
-       :log-error (str source " - " action " - " message)   ;;TODO: Consider having this fx in plug-utils/re-frame
-       :db        (assoc db :last/error last-error)}
-      ;(if (u/http-auth-issues? raw) ;; TODO: Move this to plug-utils and dispatch a redirect/to-login event
-      ;  {:redirect-to "/login"}
-      ;  {:dispatch  [:new/notification {:severity :error
-      ;                                  :text     text}]
-      ;   :log-error (str source " - " action " - " message)
-      ;   :db        (assoc db :last/error last-error)})
-      )))
-
 ;;-------------------------------------------------
 ;; EVENTS
 
